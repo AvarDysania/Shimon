@@ -1,0 +1,333 @@
+// music.js (Icon Only + Click to Toggle Slider + Smooth Page Transition)
+// ✅ Refresh resets Volume + Mute to Default
+// ✅ Slider auto closes after volume change
+
+const MUSIC_FILE = "FrozenCloudlines.mp3";
+const DEFAULT_VOLUME = 0.6;
+
+const PAGE_FADE_MS = 2300;
+const MUTE_FADE_MS = 400;
+
+let musicEl = null;
+
+// ---- Professional SVG Icons ----
+const ICON_VOLUME = `
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+     xmlns="http://www.w3.org/2000/svg">
+  <path d="M11 5L6 9H3v6h3l5 4V5Z" fill="currentColor"/>
+  <path d="M15.54 8.46a5 5 0 0 1 0 7.07" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+  <path d="M18.36 5.64a9 9 0 0 1 0 12.72" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+</svg>
+`;
+
+const ICON_MUTE = `
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+     xmlns="http://www.w3.org/2000/svg">
+  <path d="M11 5L6 9H3v6h3l5 4V5Z" fill="currentColor"/>
+  <path d="M16 9l5 5M21 9l-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+</svg>
+`;
+
+function clamp01(v) {
+  return Math.max(0, Math.min(1, v));
+}
+
+function fadeVolume(audio, from, to, duration = 400) {
+  const steps = 30;
+  const stepTime = duration / steps;
+  let currentStep = 0;
+
+  from = clamp01(from);
+  to = clamp01(to);
+
+  audio.volume = from;
+
+  const timer = setInterval(() => {
+    currentStep++;
+    const progress = currentStep / steps;
+    const value = from + (to - from) * progress;
+    audio.volume = clamp01(value);
+
+    if (currentStep >= steps) {
+      clearInterval(timer);
+      audio.volume = to;
+    }
+  }, stepTime);
+}
+
+function isReloadNav() {
+  const nav = performance.getEntriesByType("navigation")[0];
+  return nav && nav.type === "reload";
+}
+
+// ✅ Local Storage helpers
+function getMuted() {
+  return localStorage.getItem("bgMusicMuted") === "true";
+}
+function setMuted(val) {
+  localStorage.setItem("bgMusicMuted", val ? "true" : "false");
+}
+
+function getVolume() {
+  const v = parseFloat(localStorage.getItem("bgMusicVolume"));
+  return Number.isFinite(v) ? clamp01(v) : DEFAULT_VOLUME;
+}
+function setVolume(v) {
+  localStorage.setItem("bgMusicVolume", String(clamp01(v)));
+}
+
+// ✅ IMPORTANT: RESET VOLUME + MUTE ON REFRESH
+function resetMusicSettingsOnRefresh() {
+  if (isReloadNav()) {
+    localStorage.removeItem("bgMusicMuted");
+    localStorage.removeItem("bgMusicVolume");
+    sessionStorage.removeItem("bgMusicTime");
+  }
+}
+
+// ✅ Clean slider style
+function injectSoundStyles() {
+  if (document.getElementById("sound-style")) return;
+
+  const style = document.createElement("style");
+  style.id = "sound-style";
+  style.innerHTML = `
+    #sound-control {
+      border-radius: 9999px;
+    }
+
+    #sound-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      height: 4px;
+      width: 120px;
+      border-radius: 9999px;
+      background: rgba(3, 3, 3, 0.25);
+      outline: none;
+    }
+
+    #sound-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #FFBB5C;
+      border: 2px solid rgba(6, 6, 6, 0.95);
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
+      cursor: pointer;
+      transition: transform 0.15s ease;
+    }
+
+    #sound-slider:active::-webkit-slider-thumb {
+      transform: scale(1.15);
+    }
+
+    #sound-slider::-moz-range-thumb {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #060606;
+      border: 2px solid rgba(2, 2, 2, 0.95);
+      box-shadow: 0 2px 10px rgba(0,0,0,0.18);
+      cursor: pointer;
+      transition: transform 0.15s ease;
+    }
+
+    #sound-slider::-moz-range-track {
+      height: 4px;
+      border-radius: 9999px;
+      background: rgba(11, 11, 11, 0.25);
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+function createAudio() {
+  if (document.getElementById("bg-music")) {
+    musicEl = document.getElementById("bg-music");
+    return;
+  }
+
+  musicEl = document.createElement("audio");
+  musicEl.id = "bg-music";
+  musicEl.loop = true;
+
+  const source = document.createElement("source");
+  source.src = MUSIC_FILE;
+  source.type = "audio/mpeg";
+  musicEl.appendChild(source);
+
+  document.body.appendChild(musicEl);
+}
+
+function createSoundControlUI() {
+  if (document.getElementById("sound-control")) return;
+
+  const wrap = document.createElement("div");
+  wrap.id = "sound-control";
+
+  // ✅ Background removed completely
+  wrap.className =
+    "fixed top-6 right-6 z-50 flex items-center gap-3 bg-transparent border-0 shadow-none rounded-full px-0 py-0";
+
+  // ✅ Only icon visible
+  const btn = document.createElement("button");
+  btn.id = "sound-btn";
+  btn.className =
+    "w-11 h-11 flex items-center justify-center text-[#FFBB5C] transition hover:scale-110";
+  btn.setAttribute("aria-label", "Music settings");
+
+  // ✅ Slider hidden until click
+  const sliderWrap = document.createElement("div");
+  sliderWrap.id = "sound-slider-wrap";
+
+  // ✅ Slider box stays premium glass (only when opened)
+  sliderWrap.className =
+    "hidden pr-2 bg-white/10 backdrop-blur-md border border-white/10 rounded-full px-3 py-2 shadow-lg";
+
+  const slider = document.createElement("input");
+  slider.id = "sound-slider";
+  slider.type = "range";
+  slider.min = "0";
+  slider.max = "1";
+  slider.step = "0.01";
+  slider.value = String(getVolume());
+  slider.className = "cursor-pointer";
+
+  sliderWrap.appendChild(slider);
+
+  wrap.appendChild(btn);
+  wrap.appendChild(sliderWrap);
+  document.body.appendChild(wrap);
+
+  const updateIcon = () => {
+    btn.innerHTML = getMuted() ? ICON_MUTE : ICON_VOLUME;
+  };
+
+  // ✅ Apply saved/default volume
+  if (musicEl) musicEl.volume = getVolume();
+  updateIcon();
+
+  // ✅ Click icon -> toggle slider visibility
+  btn.addEventListener("click", async () => {
+    sliderWrap.classList.toggle("hidden");
+
+    // If muted -> unmute & start music
+    if (getMuted()) {
+      setMuted(false);
+      updateIcon();
+
+      if (musicEl) {
+        try {
+          const targetVol = getVolume();
+          musicEl.volume = 0;
+          await musicEl.play();
+          fadeVolume(musicEl, 0, targetVol, 600);
+        } catch (e) {}
+      }
+    }
+  });
+
+  // ✅ Slider change = adjust volume live + auto close slider
+  let autoCloseTimer = null;
+
+  slider.addEventListener("input", () => {
+    const v = parseFloat(slider.value);
+    setVolume(v);
+
+    if (musicEl) {
+      musicEl.volume = clamp01(v);
+
+      if (v <= 0.01) {
+        // mute
+        setMuted(true);
+        updateIcon();
+        fadeVolume(musicEl, musicEl.volume, 0, MUTE_FADE_MS);
+        setTimeout(() => musicEl.pause(), MUTE_FADE_MS);
+      } else {
+        // unmute
+        setMuted(false);
+        updateIcon();
+        if (musicEl.paused) {
+          musicEl.play().catch(() => {});
+        }
+      }
+    }
+
+    // ✅ Auto close slider after volume adjustment
+    clearTimeout(autoCloseTimer);
+    autoCloseTimer = setTimeout(() => {
+      sliderWrap.classList.add("hidden");
+    }, 700);
+  });
+
+  // ✅ Clicking outside closes slider
+  document.addEventListener("click", (e) => {
+    if (!wrap.contains(e.target)) {
+      sliderWrap.classList.add("hidden");
+    }
+  });
+}
+
+async function startMusicSmooth() {
+  if (!musicEl) return;
+
+  // ✅ Always start unmuted on refresh
+  if (getMuted()) return;
+
+  const savedTime = parseFloat(sessionStorage.getItem("bgMusicTime") || "0");
+
+  // Keep smooth resume only if NOT reload
+  if (!isReloadNav() && Number.isFinite(savedTime) && savedTime > 0) {
+    try {
+      musicEl.currentTime = savedTime;
+    } catch (e) {
+      musicEl.currentTime = 0;
+    }
+  } else {
+    musicEl.currentTime = 0;
+  }
+
+  const targetVol = getVolume();
+
+  try {
+    musicEl.volume = 0;
+    await musicEl.play();
+    fadeVolume(musicEl, 0, targetVol, PAGE_FADE_MS);
+  } catch (e) {
+    const startOnce = async () => {
+      if (getMuted()) return;
+      try {
+        musicEl.volume = 0;
+        await musicEl.play();
+        fadeVolume(musicEl, 0, getVolume(), PAGE_FADE_MS);
+      } catch (err) {}
+    };
+
+    document.addEventListener("click", startOnce, { once: true });
+    document.addEventListener("touchstart", startOnce, { once: true });
+  }
+}
+
+function setupSmoothPageLeave() {
+  window.addEventListener("beforeunload", () => {
+    if (!musicEl) return;
+
+    sessionStorage.setItem("bgMusicTime", String(musicEl.currentTime || 0));
+
+    if (!getMuted() && !musicEl.paused) {
+      fadeVolume(musicEl, musicEl.volume, 0, PAGE_FADE_MS);
+    }
+  });
+}
+
+window.addEventListener("DOMContentLoaded", () => {
+  resetMusicSettingsOnRefresh(); // ✅ RESET SETTINGS ON REFRESH
+
+  injectSoundStyles();
+  createAudio();
+  createSoundControlUI();
+  startMusicSmooth();
+  setupSmoothPageLeave();
+});

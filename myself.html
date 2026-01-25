@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to my world</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+
+    <style>
+        body { 
+            font-family: 'Poppins', sans-serif; 
+            background-color: #0b0f17; /* ✅ Dark background */
+            color: #e5e7eb;
+        }
+
+        .heading-font { font-family: 'Fredoka One', cursive; }
+
+        /* ✅ NEW Accent Color */
+        .text-primary { color: hsl(35, 100%, 68%); }
+        .bg-primary { background-color: hsl(35, 100%, 68%); }
+        .text-accent { color: hsl(35, 100%, 68%); }
+
+        /* ✅ Profile circle */
+        .profile-circle { border: 8px solid hsl(35, 100%, 68%); }
+
+        /* Smooth transition for mobile menu */
+        #mobile-menu { transition: transform 0.3s ease-in-out; }
+    </style>
+</head>
+
+<script src="music.js"></script>
+
+<body class="relative min-h-screen overflow-x-hidden">
+
+    <nav class="flex items-center justify-between px-6 md:px-16 py-8">
+        <div class="text-3xl font-bold flex items-center z-50">
+            <span class="text-primary heading-font">S</span>
+            <span class="text-gray-200">Joel</span>
+            <span class="text-accent">.</span>
+        </div>
+
+        <!-- ✅ Button removed from here -->
+        <!--
+        <button id="menu-btn" class="lg:hidden text-primary text-3xl z-50 focus:outline-none">
+            ☰
+        </button>
+        -->
+    </nav>
+
+    <!-- ✅ Dark mobile menu -->
+    <div id="mobile-menu" class="fixed inset-0 bg-[#0f1623] z-40 transform translate-x-full lg:hidden flex flex-col items-center justify-center space-y-8 text-2xl font-bold">
+        <button class="bg-primary text-black px-8 py-4 rounded-lg font-semibold">Download CV</button>
+    </div>
+
+    <main class="container mx-auto px-6 md:px-16 mt-8 lg:mt-12 grid grid-cols-1 lg:grid-cols-12 items-center relative gap-y-12 lg:gap-y-0">
+        
+        <div class="order-2 lg:order-1 lg:col-span-4 z-10 text-center lg:text-left">
+            <h2 class="text-3xl md:text-4xl heading-font text-gray-200 mb-2">Hy! I Am</h2>
+            <h1 class="text-5xl md:text-6xl heading-font text-accent mb-8 lg:mb-12">
+                Shimon <br class="hidden md:block">Joel.
+            </h1>
+
+            <a href="index.html">
+                <button class="bg-primary text-black px-6 py-3 rounded-lg font-semibold hover:opacity-90 transition">
+                    Check out here
+                </button>
+            </a>
+            
+            <div class="mt-12 lg:mt-32 flex justify-center lg:justify-start items-center">
+                <span class="text-5xl font-bold text-primary mr-2">02</span>
+                <span class="text-xs font-bold text-gray-400 uppercase tracking-widest leading-tight text-left">
+                    Years<br>Experience
+                </span>
+            </div>
+            
+            <div class="flex justify-center lg:justify-start space-x-6 mt-12 lg:mt-16">
+                <a href="#" class="text-accent text-xl hover:scale-110 transition">●</a>
+                <a href="#" class="text-accent text-xl hover:scale-110 transition">●</a>
+                <a href="#" class="text-accent text-xl hover:scale-110 transition">●</a>
+                <a href="#" class="text-accent text-xl hover:scale-110 transition">●</a>
+            </div>
+        </div>
+
+        <div class="order-1 lg:order-2 lg:col-span-4 flex justify-center relative">
+            <!-- ✅ Dark card behind image -->
+            <div class="relative w-64 h-64 md:w-80 md:h-80 lg:w-[450px] lg:h-[450px] rounded-full profile-circle overflow-hidden bg-[#111827] shadow-2xl">
+                <img src="ShimonImage.jpeg" alt="Shimon Joel" class="w-full h-full object-cover">
+            </div>
+            
+            <div class="hidden md:block absolute -left-10 lg:-left-20 top-10 lg:top-20 opacity-30">
+                <svg width="150" height="100" viewBox="0 0 200 150" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M1 149C1 149 50 120 100 80C150 40 199 1 199 1" stroke="hsl(35, 100%, 68%)" stroke-width="2" stroke-dasharray="8 8"/>
+                    <path d="M10 140L1 149L10 158" stroke="hsl(35, 100%, 68%)" stroke-width="2"/>
+                </svg>
+            </div>
+        </div>
+
+        <div class="order-3 lg:order-3 lg:col-span-4 lg:pl-12 text-center lg:text-right">
+            <p class="text-gray-300 text-lg font-medium leading-relaxed max-w-xs mx-auto lg:ml-auto lg:mr-0">
+                I design beautifully simple things, and I love what i do.
+            </p>
+
+            <!-- ✅ Dark glass style box -->
+            <div class="mt-12 lg:mt-20 bg-white/10 backdrop-blur-xl border border-white/10 p-4 rounded-xl shadow-xl inline-block lg:float-right">
+                <div class="flex items-center space-x-4">
+                    <div class="flex -space-x-3">
+                        <a href="https://www.linkedin.com/in/shimon-joel-63097b229/" target="_blank"
+                           class="w-10 h-10 rounded-full bg-[#0077B5] flex items-center justify-center shadow-md hover:scale-110 transition">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" class="w-5 h-5">
+                                <path d="M22.23 0H1.77C.79 0 0 .774 0 1.727v20.545C0 23.227.79 24 1.77 24h20.46c.98 0 1.77-.773 1.77-1.727V1.727C24 .774 23.21 0 22.23 0zM7.09 20.452H3.56V9h3.53v11.452zM5.325 7.433c-1.13 0-2.047-.926-2.047-2.065 0-1.14.917-2.065 2.047-2.065s2.047.925 2.047 2.065c0 1.139-.917 2.065-2.047 2.065zM20.452 20.452h-3.53v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.94v5.666h-3.53V9h3.39v1.561h.047c.472-.893 1.625-1.852 3.343-1.852 3.575 0 4.234 2.353 4.234 5.413v6.33z"/>
+                            </svg>
+                        </a>
+                    </div>
+
+                    <div class="text-left">
+                        <p class="text-sm font-bold text-gray-200">Connect with me</p>
+                        <div class="flex text-yellow-400 text-xs">Share yourself</div>
+                    </div>
+
+                    <div class="text-primary font-bold text-xl ml-4">150+</div>
+                </div>
+            </div>
+
+            <div class="mt-20 lg:mt-64">
+                <h3 class="heading-font text-4xl text-primary leading-none">Creative</h3>
+                <h4 class="text-3xl font-bold text-primary opacity-90">Designer.</h4>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        // Simple Mobile Menu Toggle Logic
+        const btn = document.getElementById('menu-btn');
+        const menu = document.getElementById('mobile-menu');
+
+        if (btn) {
+            btn.addEventListener('click', () => {
+                menu.classList.toggle('translate-x-full');
+                btn.innerText = menu.classList.contains('translate-x-full') ? '☰' : '✕';
+            });
+        }
+    </script>
+
+</body>
+</html>
