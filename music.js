@@ -2,6 +2,7 @@
 // ✅ Refresh resets Volume + Mute to Default
 // ✅ Slider auto closes after volume change
 // ✅ FIX: Preload + canplaythrough wait + Auto Start on first interaction anywhere
+// ✅ FIX: Works when coming back using browser back button (BFCache)
 
 const MUSIC_FILE = "FrozenCloudlines.mp3";
 const DEFAULT_VOLUME = 0.6;
@@ -94,9 +95,7 @@ function injectSoundStyles() {
   const style = document.createElement("style");
   style.id = "sound-style";
   style.innerHTML = `
-    #sound-control {
-      border-radius: 9999px;
-    }
+    #sound-control { border-radius: 9999px; }
 
     #sound-slider {
       -webkit-appearance: none;
@@ -121,9 +120,7 @@ function injectSoundStyles() {
       transition: transform 0.15s ease;
     }
 
-    #sound-slider:active::-webkit-slider-thumb {
-      transform: scale(1.15);
-    }
+    #sound-slider:active::-webkit-slider-thumb { transform: scale(1.15); }
 
     #sound-slider::-moz-range-thumb {
       width: 14px;
@@ -254,13 +251,11 @@ function createSoundControlUI() {
       musicEl.volume = clamp01(v);
 
       if (v <= 0.01) {
-        // mute
         setMuted(true);
         updateIcon();
         fadeVolume(musicEl, musicEl.volume, 0, MUTE_FADE_MS);
         setTimeout(() => musicEl.pause(), MUTE_FADE_MS);
       } else {
-        // unmute
         setMuted(false);
         updateIcon();
         if (musicEl.paused) {
@@ -269,7 +264,6 @@ function createSoundControlUI() {
       }
     }
 
-    // ✅ Auto close slider after volume adjustment
     clearTimeout(autoCloseTimer);
     autoCloseTimer = setTimeout(() => {
       sliderWrap.classList.add("hidden");
@@ -284,7 +278,7 @@ function createSoundControlUI() {
   });
 }
 
-// ✅ NEW: Auto-start music on FIRST interaction anywhere (not only volume button)
+// ✅ Auto-start music on FIRST interaction anywhere (not only volume button)
 function enableAutoStartAnywhere() {
   const startOnce = async () => {
     if (!musicEl) return;
@@ -294,7 +288,6 @@ function enableAutoStartAnywhere() {
     startedOnce = true;
 
     try {
-      // wait until ready
       await new Promise((resolve) => {
         if (musicEl.readyState >= 4) return resolve();
         musicEl.addEventListener("canplaythrough", resolve, { once: true });
@@ -307,7 +300,6 @@ function enableAutoStartAnywhere() {
     } catch (e) {}
   };
 
-  // ✅ Any interaction starts music
   document.addEventListener("click", startOnce, { once: true });
   document.addEventListener("touchstart", startOnce, { once: true });
   document.addEventListener("keydown", startOnce, { once: true });
@@ -316,12 +308,10 @@ function enableAutoStartAnywhere() {
 async function startMusicSmooth() {
   if (!musicEl) return;
 
-  // ✅ Always start unmuted on refresh
   if (getMuted()) return;
 
   const savedTime = parseFloat(sessionStorage.getItem("bgMusicTime") || "0");
 
-  // Keep smooth resume only if NOT reload
   if (!isReloadNav() && Number.isFinite(savedTime) && savedTime > 0) {
     try {
       musicEl.currentTime = savedTime;
@@ -343,9 +333,9 @@ async function startMusicSmooth() {
     });
 
     await musicEl.play();
+    startedOnce = true; // ✅ important so it doesn't re-trigger
     fadeVolume(musicEl, 0, targetVol, PAGE_FADE_MS);
   } catch (e) {
-    // ✅ If autoplay blocked, we will start on first interaction anywhere
     enableAutoStartAnywhere();
   }
 }
@@ -362,12 +352,28 @@ function setupSmoothPageLeave() {
   });
 }
 
-window.addEventListener("DOMContentLoaded", () => {
-  resetMusicSettingsOnRefresh(); // ✅ RESET SETTINGS ON REFRESH
-
+// ✅ MAIN INIT (Reusable)
+function initMusicSystem() {
   injectSoundStyles();
   createAudio();
   createSoundControlUI();
   startMusicSmooth();
   setupSmoothPageLeave();
+}
+
+// ✅ First load
+window.addEventListener("DOMContentLoaded", () => {
+  resetMusicSettingsOnRefresh();
+  initMusicSystem();
+});
+
+// ✅ FIX FOR BACK BUTTON (BFCache)
+// When user comes back to the page, re-trigger music setup
+window.addEventListener("pageshow", (event) => {
+  // pageshow fires on normal load AND back-forward cache restore
+  // if persisted = true => restored from cache
+  if (event.persisted) {
+    startedOnce = false; // allow starting again
+    initMusicSystem();
+  }
 });
