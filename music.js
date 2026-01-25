@@ -2,7 +2,7 @@
 // ✅ Refresh resets Volume + Mute to Default
 // ✅ Slider auto closes after volume change
 
-const MUSIC_FILE = "FrozenCloudlines_1.mp3";
+const MUSIC_FILE = "FrozenCloudlines.mp3";
 const DEFAULT_VOLUME = 0.6;
 
 const PAGE_FADE_MS = 2300;
@@ -331,4 +331,3 @@ window.addEventListener("DOMContentLoaded", () => {
   startMusicSmooth();
   setupSmoothPageLeave();
 });
-
