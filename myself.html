@@ -1,149 +1,360 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Welcome to my world</title>
+// music.js (Icon Only + Click to Toggle Slider + Smooth Page Transition)
+// ✅ Refresh resets Volume + Mute to Default
+// ✅ Slider auto closes after volume change
+// ✅ FIX: Preload + canplaythrough wait to reduce GitHub Pages delay
 
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+const MUSIC_FILE = "FrozenCloudlines.mp3";
+const DEFAULT_VOLUME = 0.6;
 
-    <style>
-        body { 
-            font-family: 'Poppins', sans-serif; 
-            background-color: #0b0f17; /* ✅ Dark background */
-            color: #e5e7eb;
+const PAGE_FADE_MS = 2300;
+const MUTE_FADE_MS = 400;
+
+let musicEl = null;
+
+// ---- Professional SVG Icons ----
+const ICON_VOLUME = `
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+     xmlns="http://www.w3.org/2000/svg">
+  <path d="M11 5L6 9H3v6h3l5 4V5Z" fill="currentColor"/>
+  <path d="M15.54 8.46a5 5 0 0 1 0 7.07" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+  <path d="M18.36 5.64a9 9 0 0 1 0 12.72" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+</svg>
+`;
+
+const ICON_MUTE = `
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+     xmlns="http://www.w3.org/2000/svg">
+  <path d="M11 5L6 9H3v6h3l5 4V5Z" fill="currentColor"/>
+  <path d="M16 9l5 5M21 9l-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+</svg>
+`;
+
+function clamp01(v) {
+  return Math.max(0, Math.min(1, v));
+}
+
+function fadeVolume(audio, from, to, duration = 400) {
+  const steps = 30;
+  const stepTime = duration / steps;
+  let currentStep = 0;
+
+  from = clamp01(from);
+  to = clamp01(to);
+
+  audio.volume = from;
+
+  const timer = setInterval(() => {
+    currentStep++;
+    const progress = currentStep / steps;
+    const value = from + (to - from) * progress;
+    audio.volume = clamp01(value);
+
+    if (currentStep >= steps) {
+      clearInterval(timer);
+      audio.volume = to;
+    }
+  }, stepTime);
+}
+
+function isReloadNav() {
+  const nav = performance.getEntriesByType("navigation")[0];
+  return nav && nav.type === "reload";
+}
+
+// ✅ Local Storage helpers
+function getMuted() {
+  return localStorage.getItem("bgMusicMuted") === "true";
+}
+function setMuted(val) {
+  localStorage.setItem("bgMusicMuted", val ? "true" : "false");
+}
+
+function getVolume() {
+  const v = parseFloat(localStorage.getItem("bgMusicVolume"));
+  return Number.isFinite(v) ? clamp01(v) : DEFAULT_VOLUME;
+}
+function setVolume(v) {
+  localStorage.setItem("bgMusicVolume", String(clamp01(v)));
+}
+
+// ✅ IMPORTANT: RESET VOLUME + MUTE ON REFRESH
+function resetMusicSettingsOnRefresh() {
+  if (isReloadNav()) {
+    localStorage.removeItem("bgMusicMuted");
+    localStorage.removeItem("bgMusicVolume");
+    sessionStorage.removeItem("bgMusicTime");
+  }
+}
+
+// ✅ Clean slider style
+function injectSoundStyles() {
+  if (document.getElementById("sound-style")) return;
+
+  const style = document.createElement("style");
+  style.id = "sound-style";
+  style.innerHTML = `
+    #sound-control {
+      border-radius: 9999px;
+    }
+
+    #sound-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      height: 4px;
+      width: 120px;
+      border-radius: 9999px;
+      background: rgba(3, 3, 3, 0.25);
+      outline: none;
+    }
+
+    #sound-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #FFBB5C;
+      border: 2px solid rgba(6, 6, 6, 0.95);
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
+      cursor: pointer;
+      transition: transform 0.15s ease;
+    }
+
+    #sound-slider:active::-webkit-slider-thumb {
+      transform: scale(1.15);
+    }
+
+    #sound-slider::-moz-range-thumb {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #060606;
+      border: 2px solid rgba(2, 2, 2, 0.95);
+      box-shadow: 0 2px 10px rgba(0,0,0,0.18);
+      cursor: pointer;
+      transition: transform 0.15s ease;
+    }
+
+    #sound-slider::-moz-range-track {
+      height: 4px;
+      border-radius: 9999px;
+      background: rgba(11, 11, 11, 0.25);
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+function createAudio() {
+  if (document.getElementById("bg-music")) {
+    musicEl = document.getElementById("bg-music");
+    return;
+  }
+
+  musicEl = document.createElement("audio");
+  musicEl.id = "bg-music";
+  musicEl.loop = true;
+
+  // ✅ FIX: Preload audio to reduce GitHub Pages delay
+  musicEl.preload = "auto";
+
+  const source = document.createElement("source");
+  source.src = MUSIC_FILE;
+  source.type = "audio/mpeg";
+  musicEl.appendChild(source);
+
+  document.body.appendChild(musicEl);
+
+  // ✅ FIX: Force browser to start fetching immediately
+  musicEl.load();
+}
+
+function createSoundControlUI() {
+  if (document.getElementById("sound-control")) return;
+
+  const wrap = document.createElement("div");
+  wrap.id = "sound-control";
+
+  // ✅ Background removed completely
+  wrap.className =
+    "fixed top-6 right-6 z-50 flex items-center gap-3 bg-transparent border-0 shadow-none rounded-full px-0 py-0";
+
+  // ✅ Only icon visible
+  const btn = document.createElement("button");
+  btn.id = "sound-btn";
+  btn.className =
+    "w-11 h-11 flex items-center justify-center text-[#FFBB5C] transition hover:scale-110";
+  btn.setAttribute("aria-label", "Music settings");
+
+  // ✅ Slider hidden until click
+  const sliderWrap = document.createElement("div");
+  sliderWrap.id = "sound-slider-wrap";
+
+  // ✅ Slider box stays premium glass (only when opened)
+  sliderWrap.className =
+    "hidden pr-2 bg-white/10 backdrop-blur-md border border-white/10 rounded-full px-3 py-2 shadow-lg";
+
+  const slider = document.createElement("input");
+  slider.id = "sound-slider";
+  slider.type = "range";
+  slider.min = "0";
+  slider.max = "1";
+  slider.step = "0.01";
+  slider.value = String(getVolume());
+  slider.className = "cursor-pointer";
+
+  sliderWrap.appendChild(slider);
+
+  wrap.appendChild(btn);
+  wrap.appendChild(sliderWrap);
+  document.body.appendChild(wrap);
+
+  const updateIcon = () => {
+    btn.innerHTML = getMuted() ? ICON_MUTE : ICON_VOLUME;
+  };
+
+  // ✅ Apply saved/default volume
+  if (musicEl) musicEl.volume = getVolume();
+  updateIcon();
+
+  // ✅ Click icon -> toggle slider visibility
+  btn.addEventListener("click", async () => {
+    sliderWrap.classList.toggle("hidden");
+
+    // If muted -> unmute & start music
+    if (getMuted()) {
+      setMuted(false);
+      updateIcon();
+
+      if (musicEl) {
+        try {
+          const targetVol = getVolume();
+          musicEl.volume = 0;
+
+          // ✅ Wait until audio is ready
+          await new Promise((resolve) => {
+            if (musicEl.readyState >= 4) return resolve();
+            musicEl.addEventListener("canplaythrough", resolve, { once: true });
+          });
+
+          await musicEl.play();
+          fadeVolume(musicEl, 0, targetVol, 600);
+        } catch (e) {}
+      }
+    }
+  });
+
+  // ✅ Slider change = adjust volume live + auto close slider
+  let autoCloseTimer = null;
+
+  slider.addEventListener("input", () => {
+    const v = parseFloat(slider.value);
+    setVolume(v);
+
+    if (musicEl) {
+      musicEl.volume = clamp01(v);
+
+      if (v <= 0.01) {
+        // mute
+        setMuted(true);
+        updateIcon();
+        fadeVolume(musicEl, musicEl.volume, 0, MUTE_FADE_MS);
+        setTimeout(() => musicEl.pause(), MUTE_FADE_MS);
+      } else {
+        // unmute
+        setMuted(false);
+        updateIcon();
+        if (musicEl.paused) {
+          musicEl.play().catch(() => {});
         }
+      }
+    }
 
-        .heading-font { font-family: 'Fredoka One', cursive; }
+    // ✅ Auto close slider after volume adjustment
+    clearTimeout(autoCloseTimer);
+    autoCloseTimer = setTimeout(() => {
+      sliderWrap.classList.add("hidden");
+    }, 700);
+  });
 
-        /* ✅ NEW Accent Color */
-        .text-primary { color: hsl(35, 100%, 68%); }
-        .bg-primary { background-color: hsl(35, 100%, 68%); }
-        .text-accent { color: hsl(35, 100%, 68%); }
+  // ✅ Clicking outside closes slider
+  document.addEventListener("click", (e) => {
+    if (!wrap.contains(e.target)) {
+      sliderWrap.classList.add("hidden");
+    }
+  });
+}
 
-        /* ✅ Profile circle */
-        .profile-circle { border: 8px solid hsl(35, 100%, 68%); }
+async function startMusicSmooth() {
+  if (!musicEl) return;
 
-        /* Smooth transition for mobile menu */
-        #mobile-menu { transition: transform 0.3s ease-in-out; }
-    </style>
-</head>
+  // ✅ Always start unmuted on refresh
+  if (getMuted()) return;
 
-<script src="music.js"></script>
+  const savedTime = parseFloat(sessionStorage.getItem("bgMusicTime") || "0");
 
-<body class="relative min-h-screen overflow-x-hidden">
+  // Keep smooth resume only if NOT reload
+  if (!isReloadNav() && Number.isFinite(savedTime) && savedTime > 0) {
+    try {
+      musicEl.currentTime = savedTime;
+    } catch (e) {
+      musicEl.currentTime = 0;
+    }
+  } else {
+    musicEl.currentTime = 0;
+  }
 
-    <nav class="flex items-center justify-between px-6 md:px-16 py-8">
-        <div class="text-3xl font-bold flex items-center z-50">
-            <span class="text-primary heading-font">S</span>
-            <span class="text-gray-200">Joel</span>
-            <span class="text-accent">.</span>
-        </div>
+  const targetVol = getVolume();
 
-        <!-- ✅ Button removed from here -->
-        <!--
-        <button id="menu-btn" class="lg:hidden text-primary text-3xl z-50 focus:outline-none">
-            ☰
-        </button>
-        -->
-    </nav>
+  try {
+    musicEl.volume = 0;
 
-    <!-- ✅ Dark mobile menu -->
-    <div id="mobile-menu" class="fixed inset-0 bg-[#0f1623] z-40 transform translate-x-full lg:hidden flex flex-col items-center justify-center space-y-8 text-2xl font-bold">
-        <button class="bg-primary text-black px-8 py-4 rounded-lg font-semibold">Download CV</button>
-    </div>
+    // ✅ FIX: Wait until audio is fully ready (reduces late start)
+    await new Promise((resolve) => {
+      if (musicEl.readyState >= 4) return resolve();
+      musicEl.addEventListener("canplaythrough", resolve, { once: true });
+    });
 
-    <main class="container mx-auto px-6 md:px-16 mt-8 lg:mt-12 grid grid-cols-1 lg:grid-cols-12 items-center relative gap-y-12 lg:gap-y-0">
-        
-        <div class="order-2 lg:order-1 lg:col-span-4 z-10 text-center lg:text-left">
-            <h2 class="text-3xl md:text-4xl heading-font text-gray-200 mb-2">Hy! I Am</h2>
-            <h1 class="text-5xl md:text-6xl heading-font text-accent mb-8 lg:mb-12">
-                Shimon <br class="hidden md:block">Joel.
-            </h1>
+    await musicEl.play();
+    fadeVolume(musicEl, 0, targetVol, PAGE_FADE_MS);
+  } catch (e) {
+    const startOnce = async () => {
+      if (getMuted()) return;
+      try {
+        musicEl.volume = 0;
 
-            <a href="index.html">
-                <button class="bg-primary text-black px-6 py-3 rounded-lg font-semibold hover:opacity-90 transition">
-                    Check out here
-                </button>
-            </a>
-            
-            <div class="mt-12 lg:mt-32 flex justify-center lg:justify-start items-center">
-                <span class="text-5xl font-bold text-primary mr-2">02</span>
-                <span class="text-xs font-bold text-gray-400 uppercase tracking-widest leading-tight text-left">
-                    Years<br>Experience
-                </span>
-            </div>
-            
-            <div class="flex justify-center lg:justify-start space-x-6 mt-12 lg:mt-16">
-                <a href="#" class="text-accent text-xl hover:scale-110 transition">●</a>
-                <a href="#" class="text-accent text-xl hover:scale-110 transition">●</a>
-                <a href="#" class="text-accent text-xl hover:scale-110 transition">●</a>
-                <a href="#" class="text-accent text-xl hover:scale-110 transition">●</a>
-            </div>
-        </div>
+        await new Promise((resolve) => {
+          if (musicEl.readyState >= 4) return resolve();
+          musicEl.addEventListener("canplaythrough", resolve, { once: true });
+        });
 
-        <div class="order-1 lg:order-2 lg:col-span-4 flex justify-center relative">
-            <!-- ✅ Dark card behind image -->
-            <div class="relative w-64 h-64 md:w-80 md:h-80 lg:w-[450px] lg:h-[450px] rounded-full profile-circle overflow-hidden bg-[#111827] shadow-2xl">
-                <img src="./assets/images/ShimonImage.jpeg" alt="Shimon Joel" class="w-full h-full object-cover">
-            </div>
-            
-            <div class="hidden md:block absolute -left-10 lg:-left-20 top-10 lg:top-20 opacity-30">
-                <svg width="150" height="100" viewBox="0 0 200 150" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M1 149C1 149 50 120 100 80C150 40 199 1 199 1" stroke="hsl(35, 100%, 68%)" stroke-width="2" stroke-dasharray="8 8"/>
-                    <path d="M10 140L1 149L10 158" stroke="hsl(35, 100%, 68%)" stroke-width="2"/>
-                </svg>
-            </div>
-        </div>
+        await musicEl.play();
+        fadeVolume(musicEl, 0, getVolume(), PAGE_FADE_MS);
+      } catch (err) {}
+    };
 
-        <div class="order-3 lg:order-3 lg:col-span-4 lg:pl-12 text-center lg:text-right">
-            <p class="text-gray-300 text-lg font-medium leading-relaxed max-w-xs mx-auto lg:ml-auto lg:mr-0">
-                I design beautifully simple things, and I love what i do.
-            </p>
+    document.addEventListener("click", startOnce, { once: true });
+    document.addEventListener("touchstart", startOnce, { once: true });
+  }
+}
 
-            <!-- ✅ Dark glass style box -->
-            <div class="mt-12 lg:mt-20 bg-white/10 backdrop-blur-xl border border-white/10 p-4 rounded-xl shadow-xl inline-block lg:float-right">
-                <div class="flex items-center space-x-4">
-                    <div class="flex -space-x-3">
-                        <a href="https://www.linkedin.com/in/shimon-joel-63097b229/" target="_blank"
-                           class="w-10 h-10 rounded-full bg-[#0077B5] flex items-center justify-center shadow-md hover:scale-110 transition">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" class="w-5 h-5">
-                                <path d="M22.23 0H1.77C.79 0 0 .774 0 1.727v20.545C0 23.227.79 24 1.77 24h20.46c.98 0 1.77-.773 1.77-1.727V1.727C24 .774 23.21 0 22.23 0zM7.09 20.452H3.56V9h3.53v11.452zM5.325 7.433c-1.13 0-2.047-.926-2.047-2.065 0-1.14.917-2.065 2.047-2.065s2.047.925 2.047 2.065c0 1.139-.917 2.065-2.047 2.065zM20.452 20.452h-3.53v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.94v5.666h-3.53V9h3.39v1.561h.047c.472-.893 1.625-1.852 3.343-1.852 3.575 0 4.234 2.353 4.234 5.413v6.33z"/>
-                            </svg>
-                        </a>
-                    </div>
+function setupSmoothPageLeave() {
+  window.addEventListener("beforeunload", () => {
+    if (!musicEl) return;
 
-                    <div class="text-left">
-                        <p class="text-sm font-bold text-gray-200">Connect with me</p>
-                        <div class="flex text-yellow-400 text-xs">Share yourself</div>
-                    </div>
+    sessionStorage.setItem("bgMusicTime", String(musicEl.currentTime || 0));
 
-                    <div class="text-primary font-bold text-xl ml-4">150+</div>
-                </div>
-            </div>
+    if (!getMuted() && !musicEl.paused) {
+      fadeVolume(musicEl, musicEl.volume, 0, PAGE_FADE_MS);
+    }
+  });
+}
 
-            <div class="mt-20 lg:mt-64">
-                <h3 class="heading-font text-4xl text-primary leading-none">Creative</h3>
-                <h4 class="text-3xl font-bold text-primary opacity-90">Designer.</h4>
-            </div>
-        </div>
+window.addEventListener("DOMContentLoaded", () => {
+  resetMusicSettingsOnRefresh(); // ✅ RESET SETTINGS ON REFRESH
 
-    </main>
-
-    <script>
-        // Simple Mobile Menu Toggle Logic
-        const btn = document.getElementById('menu-btn');
-        const menu = document.getElementById('mobile-menu');
-
-        if (btn) {
-            btn.addEventListener('click', () => {
-                menu.classList.toggle('translate-x-full');
-                btn.innerText = menu.classList.contains('translate-x-full') ? '☰' : '✕';
-            });
-        }
-    </script>
-
-</body>
-</html>
-
+  injectSoundStyles();
+  createAudio();
+  createSoundControlUI();
+  startMusicSmooth();
+  setupSmoothPageLeave();
+});
