@@ -1,8 +1,6 @@
 // music.js (Icon Only + Click to Toggle Slider + Smooth Page Transition)
 // ✅ Refresh resets Volume + Mute to Default
 // ✅ Slider auto closes after volume change
-// ✅ FIX: Preload + canplaythrough wait + Auto Start on first interaction anywhere
-// ✅ FIX: Works when coming back using browser back button (BFCache)
 
 const MUSIC_FILE = "FrozenCloudlines.mp3";
 const DEFAULT_VOLUME = 0.6;
@@ -11,7 +9,6 @@ const PAGE_FADE_MS = 2300;
 const MUTE_FADE_MS = 400;
 
 let musicEl = null;
-let startedOnce = false; // ✅ ensure we only auto-start once
 
 // ---- Professional SVG Icons ----
 const ICON_VOLUME = `
@@ -95,7 +92,9 @@ function injectSoundStyles() {
   const style = document.createElement("style");
   style.id = "sound-style";
   style.innerHTML = `
-    #sound-control { border-radius: 9999px; }
+    #sound-control {
+      border-radius: 9999px;
+    }
 
     #sound-slider {
       -webkit-appearance: none;
@@ -120,7 +119,9 @@ function injectSoundStyles() {
       transition: transform 0.15s ease;
     }
 
-    #sound-slider:active::-webkit-slider-thumb { transform: scale(1.15); }
+    #sound-slider:active::-webkit-slider-thumb {
+      transform: scale(1.15);
+    }
 
     #sound-slider::-moz-range-thumb {
       width: 14px;
@@ -152,18 +153,12 @@ function createAudio() {
   musicEl.id = "bg-music";
   musicEl.loop = true;
 
-  // ✅ Preload for faster start on GitHub Pages
-  musicEl.preload = "auto";
-
   const source = document.createElement("source");
   source.src = MUSIC_FILE;
   source.type = "audio/mpeg";
   musicEl.appendChild(source);
 
   document.body.appendChild(musicEl);
-
-  // ✅ Force browser to start fetching immediately
-  musicEl.load();
 }
 
 function createSoundControlUI() {
@@ -227,12 +222,6 @@ function createSoundControlUI() {
         try {
           const targetVol = getVolume();
           musicEl.volume = 0;
-
-          await new Promise((resolve) => {
-            if (musicEl.readyState >= 4) return resolve();
-            musicEl.addEventListener("canplaythrough", resolve, { once: true });
-          });
-
           await musicEl.play();
           fadeVolume(musicEl, 0, targetVol, 600);
         } catch (e) {}
@@ -251,11 +240,13 @@ function createSoundControlUI() {
       musicEl.volume = clamp01(v);
 
       if (v <= 0.01) {
+        // mute
         setMuted(true);
         updateIcon();
         fadeVolume(musicEl, musicEl.volume, 0, MUTE_FADE_MS);
         setTimeout(() => musicEl.pause(), MUTE_FADE_MS);
       } else {
+        // unmute
         setMuted(false);
         updateIcon();
         if (musicEl.paused) {
@@ -264,6 +255,7 @@ function createSoundControlUI() {
       }
     }
 
+    // ✅ Auto close slider after volume adjustment
     clearTimeout(autoCloseTimer);
     autoCloseTimer = setTimeout(() => {
       sliderWrap.classList.add("hidden");
@@ -278,40 +270,15 @@ function createSoundControlUI() {
   });
 }
 
-// ✅ Auto-start music on FIRST interaction anywhere (not only volume button)
-function enableAutoStartAnywhere() {
-  const startOnce = async () => {
-    if (!musicEl) return;
-    if (startedOnce) return;
-    if (getMuted()) return;
-
-    startedOnce = true;
-
-    try {
-      await new Promise((resolve) => {
-        if (musicEl.readyState >= 4) return resolve();
-        musicEl.addEventListener("canplaythrough", resolve, { once: true });
-      });
-
-      const targetVol = getVolume();
-      musicEl.volume = 0;
-      await musicEl.play();
-      fadeVolume(musicEl, 0, targetVol, PAGE_FADE_MS);
-    } catch (e) {}
-  };
-
-  document.addEventListener("click", startOnce, { once: true });
-  document.addEventListener("touchstart", startOnce, { once: true });
-  document.addEventListener("keydown", startOnce, { once: true });
-}
-
 async function startMusicSmooth() {
   if (!musicEl) return;
 
+  // ✅ Always start unmuted on refresh
   if (getMuted()) return;
 
   const savedTime = parseFloat(sessionStorage.getItem("bgMusicTime") || "0");
 
+  // Keep smooth resume only if NOT reload
   if (!isReloadNav() && Number.isFinite(savedTime) && savedTime > 0) {
     try {
       musicEl.currentTime = savedTime;
@@ -326,17 +293,20 @@ async function startMusicSmooth() {
 
   try {
     musicEl.volume = 0;
-
-    await new Promise((resolve) => {
-      if (musicEl.readyState >= 4) return resolve();
-      musicEl.addEventListener("canplaythrough", resolve, { once: true });
-    });
-
     await musicEl.play();
-    startedOnce = true; // ✅ important so it doesn't re-trigger
     fadeVolume(musicEl, 0, targetVol, PAGE_FADE_MS);
   } catch (e) {
-    enableAutoStartAnywhere();
+    const startOnce = async () => {
+      if (getMuted()) return;
+      try {
+        musicEl.volume = 0;
+        await musicEl.play();
+        fadeVolume(musicEl, 0, getVolume(), PAGE_FADE_MS);
+      } catch (err) {}
+    };
+
+    document.addEventListener("click", startOnce, { once: true });
+    document.addEventListener("touchstart", startOnce, { once: true });
   }
 }
 
@@ -352,28 +322,12 @@ function setupSmoothPageLeave() {
   });
 }
 
-// ✅ MAIN INIT (Reusable)
-function initMusicSystem() {
+window.addEventListener("DOMContentLoaded", () => {
+  resetMusicSettingsOnRefresh(); // ✅ RESET SETTINGS ON REFRESH
+
   injectSoundStyles();
   createAudio();
   createSoundControlUI();
   startMusicSmooth();
   setupSmoothPageLeave();
-}
-
-// ✅ First load
-window.addEventListener("DOMContentLoaded", () => {
-  resetMusicSettingsOnRefresh();
-  initMusicSystem();
-});
-
-// ✅ FIX FOR BACK BUTTON (BFCache)
-// When user comes back to the page, re-trigger music setup
-window.addEventListener("pageshow", (event) => {
-  // pageshow fires on normal load AND back-forward cache restore
-  // if persisted = true => restored from cache
-  if (event.persisted) {
-    startedOnce = false; // allow starting again
-    initMusicSystem();
-  }
 });
